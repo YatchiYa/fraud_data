@@ -7,8 +7,7 @@ https://codelabs.developers.google.com/codelabs/frauddetection-using-console#0
 https://towardsdatascience.com/google-cloud-storage-gcs-to-bigquery-the-simple-way-4bb74216b8c8
 https://gcloud.devoteam.com/blog/how-i-used-google-cloud-data-fusion-to-create-a-data-warehouse-part-2/
 https://bharathkp.medium.com/loading-data-into-bigquery-bq-from-google-cloud-storage-gcs-using-cloud-functions-3e03c189a65d
-
-
+https://medium.com/google-cloud/bigquery-explained-data-ingestion-cdc26a588d0
 https://lindevs.com/download-dataset-from-kaggle-using-api-and-python/
 https://www.ternarydata.com/news/use-python-and-google-cloud-to-schedule-a-file-download-and-load-into-bigquery-3p3aw
 
@@ -18,18 +17,53 @@ TODO :
 
 -> strategie utilisé : remplacé les données de la table directement.
 -> TODO : trouver un moyen de telecharger des données de kaggle avec python directement.
--> creer une cloud function qui telecharge les données directement de kaggle vers GCS
--> creer un pub/sub qui va declancher l'export du GCS vers BQ
--> TODO : A DEVELOPPER : gerer le versionnage des fichiers.
+-> TODO : A DEVELOPPER : gerer le versionnage des fichiers, ingestion du fichier en cloud storage
+-> TODO : A DEVELOPPER : gérer le versionnage en bigquery
+
 
 
 --------------------------------------
 
-****architecture 1 : Cloud Functions + BigQuery = Data Feed Automation
+****architecture 1 : Depot fichier(datalake) + Cloud scheduler + pub/sub (cloud function github -> GCS)  + Cloud Functions GCS + BigQuery = Data Feed Automation
+1 - Creer une cloud function (pub/sub) git vers storage
 
-1 - create a project : fraud-detection-simulation
-2 - create a bucket on cloud storage : fraud-data-lake
-3 - create a cloud function that transfer from google storage to bq
+function to use : 
+
+import os
+import wget
+
+from google.cloud import storage
+
+url = os.environ['URL']
+bucket_name = os.environ['BUCKET'] #without gs://
+file_name = os.environ['FILE_NAME']
+
+cf_path = '/tmp/{}'.format(file_name)
+
+def import_file(event, context):
+     # set storage client
+     client = storage.Client()
+     
+     # get bucket
+     bucket = client.get_bucket(bucket_name)
+     
+     # download the file to Cloud Function's tmp directory
+     wget.download(url, cf_path)
+     
+     # set Blob
+     blob = storage.Blob(file_name, bucket)
+     
+     # upload the file to GCS
+     blob.upload_from_filename(cf_path)
+     
+     print("""This Function was triggered by messageId {} published at {}
+     """.format(context.event_id, context.timestamp))
+
+
+2 - creer un cloud scheduler pour lancer la cloud function
+3 - create a project : fraud-detection-simulation
+4 - create a bucket on cloud storage : fraud-data-lake
+5 - create a cloud function that transfer from google storage to bq
 
 function to use : 
 
@@ -65,9 +99,8 @@ def main(event, context):
 
 
 
-4 - depot du fichie en cloud storag GCS
-5 - verifier sur BigQuery que la table est crée.
-
+6 - depot du fichie en cloud storag GCS
+7 - verifier sur BigQuery que la table est crée.
 
 
 
